@@ -1,0 +1,140 @@
+# Implementation of zcmp instructions official documentation (https://docs.riscv.org/reference/isa/unpriv/zc.html#Zcmp)
+# This file defines the RV32I implementation
+
+attach names [ cop0407 ] 
+[
+    "nv0" "nv1" "nv2" "nv3" 
+    "{ra}" "{ra, s0}" "{ra, s0-s1}" "{ra, s0-s2}" 
+    "{ra, s0-s3}" "{ra, s0-s4}" "{ra, s0-s5}" "{ra, s0-s6}"
+    "{ra, s0-s7}" "{ra, s0-s8}" "{ra, s0-s9}" "{ra, s0-s11}"
+];
+
+
+stack_adj: adj is cop0407=15 & cop0203 [ adj = 64 + (cop0203 << 4); ] { local tmp:$(XLEN) = adj;  export tmp; }
+stack_adj: adj is cop0407<15 & cop0203 & cop0607 [ adj = (cop0607 << 4) + (cop0203 << 4); ] { local tmp:$(XLEN) = adj;  export tmp; }
+
+
+macro adjcalc ( rlist, spimm, res )
+{
+    local base:$(XLEN) = 64;
+    if ( rlist == 15 ) goto <done>;
+    base = ( rlist & 0xc ) << 2;
+    <done>
+    res = base + (spimm << 4);
+}
+
+macro cmpush ( reg, slot, stadj )
+{
+    *:$(XLEN) ( sp + ( stadj - ( slot * $(XLEN) ) ) ) = reg;
+}
+
+macro cmpop ( reg, slot, stadj )
+{
+    reg = *:$(XLEN) ( sp + ( stadj - ( slot * $(XLEN) ) ) );
+}
+
+macro execop ( reg, slot, stadj, op )
+{
+    if ( op != 0 ) goto <pop>;
+    cmpush ( reg, slot, stadj );
+    goto <done>;
+    <pop>
+    cmpop ( reg, slot, stadj );
+    <done>
+}
+
+macro regsel ( rlist, spimm, stadj, op ) 
+{
+    if (rlist < 4) goto <chk_s0>;
+    execop(ra, 1, stadj, op);
+    <chk_s0>
+    if (rlist < 5) goto <chk_s1>;
+    execop(s0, 2, stadj, op);
+    <chk_s1>
+    if (rlist < 6) goto <chk_s2>;
+    execop(s1, 3, stadj, op);
+    <chk_s2>
+    if (rlist < 7) goto <chk_s3>;
+    execop(s2, 4, stadj, op);
+    <chk_s3>
+    if (rlist < 8) goto <chk_s4>;
+    execop(s3, 5, stadj, op);
+    <chk_s4>
+    if (rlist < 9) goto <chk_s5>;
+    execop(s4, 6, stadj, op);
+    <chk_s5>
+    if (rlist < 10) goto <chk_s6>;
+    execop(s5, 7, stadj, op);
+    <chk_s6>
+    if (rlist < 11) goto <chk_s7>;
+    execop(s6, 8, stadj, op);
+    <chk_s7>
+    if (rlist < 12) goto <chk_s8>;
+    execop(s7, 9, stadj, op);
+    <chk_s8>
+    if (rlist < 13) goto <chk_s9>;
+    execop(s8, 10, stadj, op);
+    <chk_s9>
+    if (rlist < 14) goto <chk_s10>;
+    execop(s9, 11, stadj, op);
+    <chk_s10>
+    if (rlist != 15) goto <done>;
+    execop(s10, 12, stadj, op);
+    execop(s11, 13, stadj, op);
+    <done>
+}
+
+:cm.push cop0407, "-"^stack_adj is cop1315=0b101 & cop0812=0b11000 & cop0407 & cop0203 & cop0001=0b10 & stack_adj
+{
+    local stadj:$(XLEN) = 0;
+    local rlist:$(XLEN) = cop0407;
+    local spimm:$(XLEN) = cop0203;
+    adjcalc( rlist, spimm, stadj );
+    sp = sp - stadj;
+    regsel( rlist, spimm, stadj, 0:$(XLEN) );
+}
+
+:cm.pop cop0407, stack_adj is cop1315=0b101 & cop0812=0b11010 & cop0407 & cop0203 & cop0001=0b10 & stack_adj
+{
+    stadj:$(XLEN) = 0;
+    local rlist:$(XLEN) = cop0407;
+    local spimm:$(XLEN) = cop0203;
+    adjcalc( rlist, spimm, stadj );
+    regsel( rlist, spimm, stadj, 1:$(XLEN) );
+    sp = sp + stadj;
+}
+
+:cm.popret cop0407, stack_adj is cop1315=0b101 & cop0812=0b11110 & cop0407 & cop0203 & cop0001=0b10 & stack_adj
+{
+    stadj:$(XLEN) = 0;
+    local rlist:$(XLEN) = cop0407;
+    local spimm:$(XLEN) = cop0203;
+    adjcalc( rlist, spimm, stadj );
+    regsel( rlist, spimm, stadj, 1:$(XLEN) );
+    sp = sp + stadj;
+    return [ra];
+}
+
+:cm.popretz cop0407, stack_adj is cop1315=0b101 & cop0812=0b11100 & cop0407 & cop0203 & cop0001=0b10 & stack_adj
+{
+    stadj:$(XLEN) = 0;
+    local rlist:$(XLEN) = cop0407;
+    local spimm:$(XLEN) = cop0203;
+    adjcalc( rlist, spimm, stadj );
+    a0 = 0;
+    regsel( rlist, spimm, stadj, 1:$(XLEN) );
+    sp = sp + stadj;
+    return [ra];
+}
+
+:cm.mvsa01 rs1c, rs2c is cop1315=0b101 & cop1012=0b011 & rs1c & cop0506=0b01 & rs2c & cop0001=0b10
+{
+    rs1c = a0;
+    rs2c = a1;
+}
+
+:cm.mva01s rs1c, rs2c is cop1315=0b101 & cop1012=0b011 & rs1c & cop0506=0b11 & rs2c & cop0001=0b10
+{
+    a0 = rs1c;
+    a1 = rs2c;
+}

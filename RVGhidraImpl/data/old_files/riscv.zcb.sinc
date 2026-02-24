@@ -1,0 +1,59 @@
+# Implementation of zcb instructions official documentation (https://docs.riscv.org/reference/isa/unpriv/zc.html#Zcb_instructions) 
+
+uimm0506: uimm is cop0606 & cop0505 [ uimm = (cop0505 << 1) | cop0606; ] { local tmp:$(XLEN) = uimm; export tmp; }
+uimm05: uimm is cop0505 [ uimm = cop0505 << 1; ] { local tmp:$(XLEN) = uimm;  export tmp; }
+
+:c.lbu rdc, uimm0506(rs1c) is cop1315=0b100 & cop1012=0b000 & rs1c & uimm0506 & rdc & cop0001=0b00
+{
+   rdc = zext(*:1 (rs1c + uimm0506));
+}
+
+:c.lhu rdc, uimm05(rs1c) is cop1315=0b100 & cop1012=0b001 & rs1c & cop0606=0b0 & uimm05 & rdc & cop0001=0b00
+{
+   rdc = zext(*:2 (rs1c + uimm05));
+}
+
+:c.lh rdc, uimm05(rs1c) is cop1315=0b100 & cop1012=0b001 & rs1c & cop0606=0b1 & uimm05 & rdc & cop0001=0b00
+{
+   rdc = sext(*:2 (rs1c + uimm05));
+}
+
+:c.sb rs2c, uimm0506(rs1c) is cop1315=0b100 & cop1012=0b010 & rs1c & uimm0506 & rs2c & cop0001=0b00
+{
+   *:1 (rs1c + uimm0506) = rs2c;
+}
+
+:c.sh rs2c, uimm05(rs1c) is cop1315=0b100 & cop1012=0b011 & rs1c & cop0606=0b0 & uimm05 & rs2c & cop0001=0b00
+{
+   *:2 (rs1c + uimm05) = rs2c;
+}
+
+:c.zext.b rsdc is cop1315=0b100 & cop1012=0b111 & rsdc & cop0506=0b11 & cop0204=0b000 & cop0001=0b01
+{
+   rsdc = zext(rsdc:1);
+}
+
+:c.sext.b rsdc is cop1315=0b100 & cop1012=0b111 & rsdc & cop0506=0b11 & cop0204=0b001 & cop0001=0b01
+{
+   rsdc = sext(rsdc:1);
+}
+
+:c.zext.h rsdc is cop1315=0b100 & cop1012=0b111 & rsdc & cop0506=0b11 & cop0204=0b010 & cop0001=0b01
+{
+   rsdc = zext(rsdc:2);
+}
+
+:c.sext.h rsdc is cop1315=0b100 & cop1012=0b111 & rsdc & cop0506=0b11 & cop0204=0b011 & cop0001=0b01
+{
+   rsdc = sext(rsdc:2);
+}
+
+:c.not rsdc is cop1315=0b100 & cop1012=0b111 & rsdc & cop0506=0b11 & cop0204=0b101 & cop0001=0b01
+{
+   rsdc = ~rsdc;
+}
+
+:c.mul rsdc, rs2c is cop1315=0b100 & cop1012=0b111 & rsdc & cop0506=0b10 & rs2c & cop0001=0b01
+{
+   rsdc = rsdc * rs2c;
+}

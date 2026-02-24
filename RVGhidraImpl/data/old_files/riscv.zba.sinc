@@ -1,0 +1,16 @@
+# Implementation of zba instructions official documentation (https://docs.riscv.org/reference/isa/unpriv/b-st-ext.html#zba)
+
+:sh1add rd, rs1, rs2 is op2531=0b0010000 & rs2 & rs1 & op1214=0b010 & rd & op0006=0b0110011
+{
+    rd = rs2 + (rs1 << 1);
+}
+
+:sh2add rd, rs1, rs2 is op2531=0b0010000 & rs2 & rs1 & op1214=0b100 & rd & op0006=0b0110011
+{
+    rd = rs2 + (rs1 << 2);
+}
+
+:sh3add rd, rs1, rs2 is op2531=0b0010000 & rs2 & rs1 & op1214=0b110 & rd & op0006=0b0110011
+{
+    rd = rs2 + (rs1 << 3);
+}

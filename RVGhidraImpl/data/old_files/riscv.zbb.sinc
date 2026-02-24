@@ -1,0 +1,101 @@
+# Implementation of zbb instructions official documentation (https://docs.riscv.org/reference/isa/unpriv/b-st-ext.html#zbb)
+
+define pcodeop bitmanip_clz;
+define pcodeop bitmanip_ctz;
+
+:andn rd, rs1, rs2 is op2531=0b0100000 & rs2 & rs1 & op1214=0b111 & rd & op0006=0b0110011
+{
+    rd = rs1 & ~rs2;
+}
+
+:orn rd, rs1, rs2 is op2531=0b0100000 & rs2 & rs1 & op1214=0b110 & rd & op0006=0b0110011
+{
+    rd = rs1 | ~rs2;
+}
+
+:xnor rd, rs1, rs2 is op2531=0b0100000 & rs2 & rs1 & op1214=0b100 & rd & op0006=0b0110011
+{
+    rd = ~(rs1 ^ rs2);
+}
+
+:clz rd, rs1 is op2531=0b0110000 & op2024=0b00000 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = bitmanip_clz(rs1);
+}
+
+:ctz rd, rs1 is op2531=0b0110000 & op2024=0b00001 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = bitmanip_ctz(rs1);
+}
+
+:cpop rd, rs1 is op2531=0b0110000 & op2024=0b00010 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = popcount(rs1);
+}
+
+:max rd, rs1, rs2 is op2531=0b0000101 & rs2 & rs1 & op1214=0b110 & rd & op0006=0b0110011
+{
+    if (rs1 s< rs2) goto <src2>;
+    rd = rs1;
+    goto <done>;
+    <src2>
+    rd = rs2;
+    <done>
+}
+
+:maxu rd, rs1, rs2 is op2531=0b0000101 & rs2 & rs1 & op1214=0b111 & rd & op0006=0b0110011
+{
+    if (rs1 < rs2) goto <src2>;
+    rd = rs1;
+    goto <done>;
+    <src2>
+    rd = rs2;
+    <done>
+}
+
+:min rd, rs1, rs2 is op2531=0b0000101 & rs2 & rs1 & op1214=0b100 & rd & op0006=0b0110011
+{
+    if (rs1 s< rs2) goto <src1>;
+    rd = rs2;
+    goto <done>;
+    <src1>
+    rd = rs1;
+    <done>
+}
+
+:minu rd, rs1, rs2 is op2531=0b0000101 & rs2 & rs1 & op1214=0b101 & rd & op0006=0b0110011
+{
+    if (rs1 < rs2) goto <src1>;
+    rd = rs2;
+    goto <done>;
+    <src1>
+    rd = rs1;
+    <done>
+}
+
+:sext.b rd, rs1 is op2531=0b0110000 & op2024=0b00100 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+   rd = sext(rs1:1);
+}
+
+:sext.h rd, rs1 is op2531=0b0110000 & op2024=0b00101 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+   rd = sext(rs1:2);
+}
+
+:zext.h rd, rs1 is op2531=0b0000100 & op2024=0b00000 & rs1 & op1214=0b100 & rd & op0006=0b0110011
+{
+   rd = zext(rs1:2);
+}
+
+:orc.b rd, rs1 is op2031=0b001010000111 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    rd = (zext((rs1 & 0xFF) != 0) * 0xFF)| 
+         (zext((rs1 & 0xFF00) != 0) * 0xFF00)| 
+         (zext((rs1 & 0xFF0000) != 0) * 0xFF0000)| 
+         (zext((rs1 & 0xFF000000) != 0) * 0xFF000000)| 
+         (zext((rs1 & 0xFF00000000) != 0) * 0xFF00000000)| 
+         (zext((rs1 & 0xFF0000000000) != 0) * 0xFF0000000000)|
+         (zext((rs1 & 0xFF000000000000) != 0) * 0xFF000000000000)|
+         (zext((rs1 & 0xFF00000000000000) != 0) * 0xFF00000000000000);
+}

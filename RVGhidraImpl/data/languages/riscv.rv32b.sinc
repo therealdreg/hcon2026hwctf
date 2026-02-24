@@ -1,0 +1,308 @@
+# RV32 Zb Extension (Bit Manipulation)
+# NOTE: v1.0.0
+# Reference: https://docs.riscv.org/reference/isa/unpriv/b-st-ext.html
+
+# ==============================================================================
+# Zba Instructions
+# ==============================================================================
+
+# 0010000 rs2 rs1 010 rd 0110011
+:sh1add rd, rs1, rs2    is op2531=0x10 & rs2 & rs1 & op1214=0x2 & rd & op0006=0x33
+{
+    rd = rs2 + (rs1 << 1);
+}
+
+# 0010000 rs2 rs1 100 rd 0110011
+:sh2add rd, rs1, rs2    is op2531=0x10 & rs2 & rs1 & op1214=0x4 & rd & op0006=0x33
+{
+    rd = rs2 + (rs1 << 2);
+}
+
+# 0010000 rs2 rs1 110 rd 0110011
+:sh3add rd, rs1, rs2    is op2531=0x10 & rs2 & rs1 & op1214=0x6 & rd & op0006=0x33
+{
+    rd = rs2 + (rs1 << 3);
+}
+
+# ==============================================================================
+# Zbb Instructions
+# ==============================================================================
+
+define pcodeop bitmanip_clz;
+define pcodeop bitmanip_ctz;
+
+# 0100000 rs2 rs1 111 rd 0110011
+:andn rd, rs1, rs2      is op2531=0x20 & rs2 & rs1 & op1214=0x7 & rd & op0006=0x33
+{
+    rd = rs1 & ~rs2;
+}
+
+# 0100000 rs2 rs1 110 rd 0110011
+:orn rd, rs1, rs2       is op2531=0x20 & rs2 & rs1 & op1214=0x6 & rd & op0006=0x33
+{
+    rd = rs1 | ~rs2;
+}
+
+# 0100000 rs2 rs1 100 rd 0110011
+:xnor rd, rs1, rs2      is op2531=0x20 & rs2 & rs1 & op1214=0x4 & rd & op0006=0x33
+{
+    rd = ~(rs1 ^ rs2);
+}
+
+# 0110000 00000 rs1 001 rd 0010011
+:clz rd, rs1            is op2531=0x30 & op2024=0x0 & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = bitmanip_clz(rs1);
+}
+
+# 0110000 00001 rs1 001 rd 0010011
+:ctz rd, rs1            is op2531=0x30 & op2024=0x1 & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = bitmanip_ctz(rs1);
+}
+
+# 0110000 00010 rs1 001 rd 0010011
+:cpop rd, rs1           is op2531=0x30 & op2024=0x2 & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = popcount(rs1);
+}
+
+# 0000101 rs2 rs1 110 rd 0110011
+:max rd, rs1, rs2       is op2531=0x5 & rs2 & rs1 & op1214=0x6 & rd & op0006=0x33
+{
+    if (rs1 s< rs2) goto <src2>;
+    rd = rs1;
+    goto <done>;
+    <src2>
+    rd = rs2;
+    <done>
+}
+
+# 0000101 rs2 rs1 111 rd 0110011
+:maxu rd, rs1, rs2      is op2531=0x5 & rs2 & rs1 & op1214=0x7 & rd & op0006=0x33
+{
+    if (rs1 < rs2) goto <src2>;
+    rd = rs1;
+    goto <done>;
+    <src2>
+    rd = rs2;
+    <done>
+}
+
+# 0000101 rs2 rs1 100 rd 0110011
+:min rd, rs1, rs2       is op2531=0x5 & rs2 & rs1 & op1214=0x4 & rd & op0006=0x33
+{
+    if (rs1 s< rs2) goto <src1>;
+    rd = rs2;
+    goto <done>;
+    <src1>
+    rd = rs1;
+    <done>
+}
+
+# 0000101 rs2 rs1 101 rd 0110011
+:minu rd, rs1, rs2      is op2531=0x5 & rs2 & rs1 & op1214=0x5 & rd & op0006=0x33
+{
+    if (rs1 < rs2) goto <src1>;
+    rd = rs2;
+    goto <done>;
+    <src1>
+    rd = rs1;
+    <done>
+}
+
+# 0110000 00100 rs1 001 rd 0010011
+:sext.b rd, rs1         is op2531=0x30 & op2024=0x4 & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = sext(rs1:1);
+}
+
+# 0110000 00101 rs1 001 rd 0010011
+:sext.h rd, rs1         is op2531=0x30 & op2024=0x5 & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = sext(rs1:2);
+}
+
+# 0000100 00000 rs1 100 rd 0110011
+:zext.h rd, rs1         is op2531=0x4 & op2024=0x0 & rs1 & op1214=0x4 & rd & op0006=0x33
+{
+    rd = zext(rs1:2);
+}
+
+# 0010100 00111 rs1 101 rd 0010011
+:orc.b rd, rs1          is op2031=0x287 & rs1 & op1214=0x5 & rd & op0006=0x13
+{
+    rd = (zext((rs1 & 0xFF) != 0) * 0xFF) |
+         (zext((rs1 & 0xFF00) != 0) * 0xFF00) |
+         (zext((rs1 & 0xFF0000) != 0) * 0xFF0000) |
+         (zext((rs1 & 0xFF000000) != 0) * 0xFF000000) |
+         (zext((rs1 & 0xFF00000000) != 0) * 0xFF00000000) |
+         (zext((rs1 & 0xFF0000000000) != 0) * 0xFF0000000000) |
+         (zext((rs1 & 0xFF000000000000) != 0) * 0xFF000000000000) |
+         (zext((rs1 & 0xFF00000000000000) != 0) * 0xFF00000000000000);
+}
+
+# ==============================================================================
+# Zbc Instructions and Zbkc Instructions
+# ==============================================================================
+
+define pcodeop bitmanip_clmul;
+define pcodeop bitmanip_clmulh;
+define pcodeop bitmanip_clmulr;
+
+# 0000101 rs2 rs1 001 rd 0110011
+:clmul rd, rs1, rs2     is op2531=0x5 & rs2 & rs1 & op1214=0x1 & rd & op0006=0x33
+{
+    rd = bitmanip_clmul(rs1, rs2);
+}
+
+# 0000101 rs2 rs1 011 rd 0110011
+:clmulh rd, rs1, rs2    is op2531=0x5 & rs2 & rs1 & op1214=0x3 & rd & op0006=0x33
+{
+    rd = bitmanip_clmulh(rs1, rs2);
+}
+
+# 0000101 rs2 rs1 010 rd 0110011
+:clmulr rd, rs1, rs2    is op2531=0x5 & rs2 & rs1 & op1214=0x2 & rd & op0006=0x33
+{
+    rd = bitmanip_clmulr(rs1, rs2);
+}
+
+# ==============================================================================
+# Zbs Instructions
+# ==============================================================================
+
+# 0100100 rs2 rs1 001 rd 0110011
+:bclr rd, rs1, rs2      is op2531=0x24 & rs2 & rs1 & op1214=0x1 & rd & op0006=0x33
+{
+    rd = rs1 & ~(1:$(XLEN) << (rs2 & (($(XLEN) << 3) - 1)));
+}
+
+# 0100100 shamt rs1 001 rd 0010011
+:bclri rd, rs1, op2024  is op2531=0x24 & op2024 & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = rs1 & ~(1:$(XLEN) << op2024);
+}
+
+# 0100100 rs2 rs1 101 rd 0110011
+:bext rd, rs1, rs2      is op2531=0x24 & rs2 & rs1 & op1214=0x5 & rd & op0006=0x33
+{
+    rd = (rs1 >> (rs2 & (($(XLEN) << 3) - 1))) & 1;
+}
+
+# 0100100 shamt rs1 101 rd 0010011
+:bexti rd, rs1, op2024  is op2531=0x24 & op2024 & rs1 & op1214=0x5 & rd & op0006=0x13
+{
+    rd = (rs1 >> op2024) & 1;
+}
+
+# 0110100 rs2 rs1 001 rd 0110011
+:binv rd, rs1, rs2      is op2531=0x34 & rs2 & rs1 & op1214=0x1 & rd & op0006=0x33
+{
+    rd = rs1 ^ (1:$(XLEN) << (rs2 & (($(XLEN) << 3) - 1)));
+}
+
+# 0110100 shamt rs1 001 rd 0010011
+:binvi rd, rs1, op2024  is op2531=0x34 & op2024 & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = rs1 ^ (1:$(XLEN) << op2024);
+}
+
+# 0010100 rs2 rs1 001 rd 0110011
+:bset rd, rs1, rs2      is op2531=0x14 & rs2 & rs1 & op1214=0x1 & rd & op0006=0x33
+{
+    rd = rs1 | (1:$(XLEN) << (rs2 & (($(XLEN) << 3) - 1)));
+}
+
+# 0010100 shamt rs1 001 rd 0010011
+:bseti rd, rs1, op2024  is op2531=0x14 & op2024 & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = rs1 | (1:$(XLEN) << op2024);
+}
+
+# ==============================================================================
+# Zbkb Instructions
+# ==============================================================================
+
+define pcodeop bitmanip_zip;
+define pcodeop bitmanip_unzip;
+
+# 0110000 rs2 rs1 001 rd 0110011
+:rol rd, rs1, rs2       is op2531=0x30 & rs2 & rs1 & op1214=0x1 & rd & op0006=0x33
+{
+    rd = (rs1 << (rs2 & (($(XLEN) << 3) - 1))) |
+         (rs1 >> (($(XLEN) << 3) - (rs2 & (($(XLEN) << 3) - 1))));
+}
+
+# 0110000 rs2 rs1 101 rd 0110011
+:ror rd, rs1, rs2       is op2531=0x30 & rs2 & rs1 & op1214=0x5 & rd & op0006=0x33
+{
+    rd = (rs1 >> (rs2 & (($(XLEN) << 3) - 1))) |
+         (rs1 << (($(XLEN) << 3) - (rs2 & (($(XLEN) << 3) - 1))));
+}
+
+# 0110000 shamt rs1 101 rd 0010011
+:rori rd, rs1, op2024   is op2531=0x30 & op2024 & rs1 & op1214=0x5 & rd & op0006=0x13
+{
+    rd = (rs1 >> op2024) | (rs1 << (($(XLEN) << 3) - op2024));
+}
+
+# 0110100 11000 rs1 101 rd 0010011
+:rev8 rd, rs1           is op2031=0x698 & rs1 & op1214=0x5 & rd & op0006=0x13
+{
+    rd = ((rs1 & 0xFF) << 24) |
+         ((rs1 & 0xFF00) << 8) |
+         ((rs1 >> 8) & 0xFF00) |
+         ((rs1 >> 24) & 0xFF);
+}
+
+# 0000100 rs2 rs1 100 rd 0110011
+:pack rd, rs1, rs2      is op2531=0x4 & rs2 & rs1 & op1214=0x4 & rd & op0006=0x33
+{
+    rd = (zext(rs2:$(HXLEN)) << ($(XLEN) << 2)) | zext(rs1:$(HXLEN));
+}
+
+# 0000100 rs2 rs1 111 rd 0110011
+:packh rd, rs1, rs2     is op2531=0x4 & rs2 & rs1 & op1214=0x7 & rd & op0006=0x33
+{
+    rd = (zext(rs2:1) << 8) | zext(rs1:1);
+}
+
+# 0110100 00111 rs1 101 rd 0010011
+:brev8 rd, rs1          is op2031=0x687 & rs1 & op1214=0x5 & rd & op0006=0x13
+{
+    local tmp = ((rs1 & 0x5555555555555555) << 1) | ((rs1 >> 1) & 0x5555555555555555);
+    tmp =       ((tmp & 0x3333333333333333) << 2) | ((tmp >> 2) & 0x3333333333333333);
+    rd =        ((tmp & 0x0F0F0F0F0F0F0F0F) << 4) | ((tmp >> 4) & 0x0F0F0F0F0F0F0F0F);
+}
+
+# 0000100 01111 rs1 001 rd 0010011
+:zip rd, rs1            is op2531=0x4 & op2024=0xf & rs1 & op1214=0x1 & rd & op0006=0x13
+{
+    rd = bitmanip_zip(rs1);
+}
+
+# 0000100 01111 rs1 101 rd 0010011
+:unzip rd, rs1          is op2531=0x4 & op2024=0xf & rs1 & op1214=0x5 & rd & op0006=0x13
+{
+    rd = bitmanip_unzip(rs1);
+}
+
+# ==============================================================================
+# Zbkx Instructions
+# ==============================================================================
+
+define pcodeop bitmanip_xperm4;
+define pcodeop bitmanip_xperm8;
+
+# 0010100 rs2 rs1 010 rd 0110011
+:xperm4 rd, rs1, rs2    is op2531=0x14 & rs2 & rs1 & op1214=0x2 & rd & op0006=0x33
+{
+    rd = bitmanip_xperm4(rs1, rs2);
+}
+
+# 0010100 rs2 rs1 100 rd 0110011
+:xperm8 rd, rs1, rs2    is op2531=0x14 & rs2 & rs1 & op1214=0x4 & rd & op0006=0x33
+{
+    rd = bitmanip_xperm8(rs1, rs2);
+}

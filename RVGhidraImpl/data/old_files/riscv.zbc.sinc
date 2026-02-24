@@ -1,0 +1,21 @@
+# Implementation of zbc instructions official documentation (https://docs.riscv.org/reference/isa/unpriv/b-st-ext.html#zbc)
+
+define pcodeop bitmanip_clmul;
+define pcodeop bitmanip_clmulh;
+define pcodeop bitmanip_clmulr;
+
+
+:clmul rd, rs1, rs2 is op2531=0b0000101 & rs2 & rs1 & op1214=0b001 & rd & op0006=0b0110011
+{
+    rd = bitmanip_clmul(rs1, rs2);
+}
+
+:clmulh rd, rs1, rs2 is op2531=0b0000101 & rs2 & rs1 & op1214=0b011 & rd & op0006=0b0110011
+{
+    rd = bitmanip_clmulh(rs1, rs2);
+}
+
+:clmulr rd, rs1, rs2 is op2531=0b0000101 & rs2 & rs1 & op1214=0b010 & rd & op0006=0b0110011
+{
+    rd = bitmanip_clmulr(rs1, rs2);
+}

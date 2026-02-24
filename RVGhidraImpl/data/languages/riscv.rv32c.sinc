@@ -1,0 +1,240 @@
+# RV32 Zc Extension (Code Size Reduction)
+# NOTE: v1.0.0
+# Reference: https://docs.riscv.org/reference/isa/unpriv/zc.html
+
+# ==============================================================================
+# Zcb Instructions
+# ==============================================================================
+
+# Helper definitions for Zcb immediates
+uimm0506: uimm  is cop0606 & cop0505
+    [ uimm = (cop0505 << 1) | cop0606; ]
+{
+    local tmp:$(XLEN) = uimm;
+    export tmp;
+}
+
+uimm05: uimm    is cop0505
+    [ uimm = cop0505 << 1; ]
+{
+    local tmp:$(XLEN) = uimm;
+    export tmp;
+}
+
+# 100 000 rs1' uimm rd' 00
+:c.lbu rdc, uimm0506(rs1c)      is cop1315=0x4 & cop1012=0x0 & rs1c & uimm0506 & rdc & cop0001=0x0
+{
+    rdc = zext(*:1 (rs1c + uimm0506));
+}
+
+# 100 001 rs1' 0 uimm rd' 00
+:c.lhu rdc, uimm05(rs1c)        is cop1315=0x4 & cop1012=0x1 & rs1c & cop0606=0x0 & uimm05 & rdc & cop0001=0x0
+{
+    rdc = zext(*:2 (rs1c + uimm05));
+}
+
+# 100 001 rs1' 1 uimm rd' 00
+:c.lh rdc, uimm05(rs1c)         is cop1315=0x4 & cop1012=0x1 & rs1c & cop0606=0x1 & uimm05 & rdc & cop0001=0x0
+{
+    rdc = sext(*:2 (rs1c + uimm05));
+}
+
+# 100 010 rs1' uimm rs2' 00
+:c.sb rs2c, uimm0506(rs1c)      is cop1315=0x4 & cop1012=0x2 & rs1c & uimm0506 & rs2c & cop0001=0x0
+{
+    *:1 (rs1c + uimm0506) = rs2c;
+}
+
+# 100 011 rs1' 0 uimm rs2' 00
+:c.sh rs2c, uimm05(rs1c)        is cop1315=0x4 & cop1012=0x3 & rs1c & cop0606=0x0 & uimm05 & rs2c & cop0001=0x0
+{
+    *:2 (rs1c + uimm05) = rs2c;
+}
+
+# 100 111 rsd' 11 000 01
+:c.zext.b rsdc                  is cop1315=0x4 & cop1012=0x7 & rsdc & cop0506=0x3 & cop0204=0x0 & cop0001=0x1
+{
+    rsdc = zext(rsdc:1);
+}
+
+# 100 111 rsd' 11 001 01
+:c.sext.b rsdc                  is cop1315=0x4 & cop1012=0x7 & rsdc & cop0506=0x3 & cop0204=0x1 & cop0001=0x1
+{
+    rsdc = sext(rsdc:1);
+}
+
+# 100 111 rsd' 11 010 01
+:c.zext.h rsdc                  is cop1315=0x4 & cop1012=0x7 & rsdc & cop0506=0x3 & cop0204=0x2 & cop0001=0x1
+{
+    rsdc = zext(rsdc:2);
+}
+
+# 100 111 rsd' 11 011 01
+:c.sext.h rsdc                  is cop1315=0x4 & cop1012=0x7 & rsdc & cop0506=0x3 & cop0204=0x3 & cop0001=0x1
+{
+    rsdc = sext(rsdc:2);
+}
+
+# 100 111 rsd' 11 101 01
+:c.not rsdc                     is cop1315=0x4 & cop1012=0x7 & rsdc & cop0506=0x3 & cop0204=0x5 & cop0001=0x1
+{
+    rsdc = ~rsdc;
+}
+
+# 100 111 rsd' 10 rs2' 01
+:c.mul rsdc, rs2c               is cop1315=0x4 & cop1012=0x7 & rsdc & cop0506=0x2 & rs2c & cop0001=0x1
+{
+    rsdc = rsdc * rs2c;
+}
+
+# ==============================================================================
+# Zcmp Instructions
+# ==============================================================================
+
+attach names [ cop0407 ]
+[
+    "nv0"       "nv1"         "nv2"         "nv3"
+    "{ra}"      "{ra, s0}"    "{ra, s0-s1}" "{ra, s0-s2}"
+    "{ra, s0-s3}" "{ra, s0-s4}" "{ra, s0-s5}" "{ra, s0-s6}"
+    "{ra, s0-s7}" "{ra, s0-s8}" "{ra, s0-s9}" "{ra, s0-s11}"
+];
+
+stack_adj: adj is cop0407=0xf & cop0203
+    [ adj = 64 + (cop0203 << 4); ]
+{
+    local tmp:$(XLEN) = adj;
+    export tmp;
+}
+
+stack_adj: adj is cop0407!=0xf & cop0203 & cop0607
+    [ adj = (cop0607 << 4) + (cop0203 << 4); ]
+{
+    local tmp:$(XLEN) = adj;
+    export tmp;
+}
+
+macro adjcalc(rlist, spimm, res) {
+    local base:$(XLEN) = 64;
+    if ( rlist == 15 ) goto <done>;
+    base = ( rlist & 0xc ) << 2;
+    <done>
+    res = base + (spimm << 4);
+}
+
+macro cmpush(reg, slot, stadj) {
+    *:$(XLEN) ( sp + ( stadj - ( slot * $(XLEN) ) ) ) = reg;
+}
+
+macro cmpop(reg, slot, stadj) {
+    reg = *:$(XLEN) ( sp + ( stadj - ( slot * $(XLEN) ) ) );
+}
+
+macro execop(reg, slot, stadj, op) {
+    if ( op != 0 ) goto <pop>;
+    cmpush ( reg, slot, stadj );
+    goto <done>;
+    <pop>
+    cmpop ( reg, slot, stadj );
+    <done>
+}
+
+macro regsel(rlist, spimm, stadj, op) {
+    if (rlist < 4) goto <chk_s0>;
+    execop(ra, 1, stadj, op);
+    <chk_s0>
+    if (rlist < 5) goto <chk_s1>;
+    execop(s0, 2, stadj, op);
+    <chk_s1>
+    if (rlist < 6) goto <chk_s2>;
+    execop(s1, 3, stadj, op);
+    <chk_s2>
+    if (rlist < 7) goto <chk_s3>;
+    execop(s2, 4, stadj, op);
+    <chk_s3>
+    if (rlist < 8) goto <chk_s4>;
+    execop(s3, 5, stadj, op);
+    <chk_s4>
+    if (rlist < 9) goto <chk_s5>;
+    execop(s4, 6, stadj, op);
+    <chk_s5>
+    if (rlist < 10) goto <chk_s6>;
+    execop(s5, 7, stadj, op);
+    <chk_s6>
+    if (rlist < 11) goto <chk_s7>;
+    execop(s6, 8, stadj, op);
+    <chk_s7>
+    if (rlist < 12) goto <chk_s8>;
+    execop(s7, 9, stadj, op);
+    <chk_s8>
+    if (rlist < 13) goto <chk_s9>;
+    execop(s8, 10, stadj, op);
+    <chk_s9>
+    if (rlist < 14) goto <chk_s10>;
+    execop(s9, 11, stadj, op);
+    <chk_s10>
+    if (rlist != 15) goto <done>;
+    execop(s10, 12, stadj, op);
+    execop(s11, 13, stadj, op);
+    <done>
+}
+
+# 101 11000 rlist spimm 10
+:cm.push cop0407, "-"^stack_adj   is cop1315=0x5 & cop0812=0x18 & cop0407 & cop0203 & cop0001=0x2 & stack_adj
+{
+    local stadj:$(XLEN) = 0;
+    local rlist:$(XLEN) = cop0407;
+    local spimm:$(XLEN) = cop0203;
+    adjcalc( rlist, spimm, stadj );
+    sp = sp - stadj;
+    regsel( rlist, spimm, stadj, 0:$(XLEN) );
+}
+
+# 101 11010 rlist spimm 10
+:cm.pop cop0407, stack_adj        is cop1315=0x5 & cop0812=0x1a & cop0407 & cop0203 & cop0001=0x2 & stack_adj
+{
+    stadj:$(XLEN) = 0;
+    local rlist:$(XLEN) = cop0407;
+    local spimm:$(XLEN) = cop0203;
+    adjcalc( rlist, spimm, stadj );
+    regsel( rlist, spimm, stadj, 1:$(XLEN) );
+    sp = sp + stadj;
+}
+
+# 101 11110 rlist spimm 10
+:cm.popret cop0407, stack_adj     is cop1315=0x5 & cop0812=0x1e & cop0407 & cop0203 & cop0001=0x2 & stack_adj
+{
+    stadj:$(XLEN) = 0;
+    local rlist:$(XLEN) = cop0407;
+    local spimm:$(XLEN) = cop0203;
+    adjcalc( rlist, spimm, stadj );
+    regsel( rlist, spimm, stadj, 1:$(XLEN) );
+    sp = sp + stadj;
+    return [ra];
+}
+
+# 101 11100 rlist spimm 10
+:cm.popretz cop0407, stack_adj    is cop1315=0x5 & cop0812=0x1c & cop0407 & cop0203 & cop0001=0x2 & stack_adj
+{
+    stadj:$(XLEN) = 0;
+    local rlist:$(XLEN) = cop0407;
+    local spimm:$(XLEN) = cop0203;
+    adjcalc( rlist, spimm, stadj );
+    a0 = 0;
+    regsel( rlist, spimm, stadj, 1:$(XLEN) );
+    sp = sp + stadj;
+    return [ra];
+}
+
+# 101 011 rs1' 01 rs2' 10
+:cm.mvsa01 rs1c, rs2c             is cop1315=0x5 & cop1012=0x3 & rs1c & cop0506=0x1 & rs2c & cop0001=0x2
+{
+    rs1c = a0;
+    rs2c = a1;
+}
+
+# 101 011 rs1' 11 rs2' 10
+:cm.mva01s rs1c, rs2c             is cop1315=0x5 & cop1012=0x3 & rs1c & cop0506=0x3 & rs2c & cop0001=0x2
+{
+    a0 = rs1c;
+    a1 = rs2c;
+}

@@ -1,0 +1,41 @@
+# Implementation of zbs instructions official documentation (https://docs.riscv.org/reference/isa/unpriv/b-st-ext.html#zbs)
+
+:bclr rd, rs1, rs2 is op2531=0b0100100 & rs2 & rs1 & op1214=0b001 & rd & op0006=0b0110011
+{
+    rd = rs1 & ~(1:$(XLEN) << (rs2 & (($(XLEN) << 3) - 1)));
+}
+
+:bclri rd, rs1, op2024 is op2531=0b0100100 & op2024 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = rs1 & ~(1:$(XLEN) << op2024);
+}
+
+:bext rd, rs1, rs2 is op2531=0b0100100 & rs2 & rs1 & op1214=0b101 & rd & op0006=0b0110011
+{
+    rd = (rs1 >> (rs2 & (($(XLEN) << 3) - 1))) & 1;
+}
+
+:bexti rd, rs1, op2024 is op2531=0b0100100 & op2024 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    rd = (rs1 >> op2024) & 1;
+}
+
+:binv rd, rs1, rs2 is op2531=0b0110100 & rs2 & rs1 & op1214=0b001 & rd & op0006=0b0110011
+{
+    rd = rs1 ^ (1:$(XLEN) << (rs2 & (($(XLEN) << 3) - 1)));
+}
+
+:binvi rd, rs1, op2024 is op2531=0b0110100 & op2024 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = rs1 ^ (1:$(XLEN) << op2024);
+}
+
+:bset rd, rs1, rs2 is op2531=0b0010100 & rs2 & rs1 & op1214=0b001 & rd & op0006=0b0110011
+{
+    rd = rs1 | (1:$(XLEN) << (rs2 & (($(XLEN) << 3) - 1)));
+}
+
+:bseti rd, rs1, op2024 is op2531=0b0010100 & op2024 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = rs1 | (1:$(XLEN) << op2024);
+}

@@ -1,0 +1,113 @@
+define pcodeop bitmanip_clzw;
+define pcodeop bitmanip_ctzw;
+
+# zcb
+:c.zext.w rsdc is cop1315=0b100 & cop1012=0b111 & rsdc & cop0506=0b11 & cop0204=0b100 & cop0001=0b01
+{
+   rsdc = zext(rsdc:4);
+}
+
+# zba 
+:add.uw rd, rs1, rs2 is op2531=0b0000100 & rs2 & rs1 & op1214=0b000 & rd & op0006=0b0111011
+{
+    rd = rs2 + zext(rs1:4);
+}
+
+:sh1add.uw rd, rs1, rs2 is op2531=0b0010000 & rs2 & rs1 & op1214=0b010 & rd & op0006=0b0111011
+{
+    rd = rs2 + (zext(rs1:4) << 1);
+}
+
+:sh2add.uw rd, rs1, rs2 is op2531=0b0010000 & rs2 & rs1 & op1214=0b100 & rd & op0006=0b0111011
+{
+    rd = rs2 + (zext(rs1:4) << 2);
+}
+
+:sh3add.uw rd, rs1, rs2 is op2531=0b0010000 & rs2 & rs1 & op1214=0b110 & rd & op0006=0b0111011
+{
+    rd = rs2 + (zext(rs1:4) << 3);
+}
+
+:slli.uw rd, rs1, op2025 is op2631=0b000010 & op2025 & rs1 & op1214=0b001 & rd & op0006=0b0011011
+{
+    rd = zext(rs1:4) << op2025;
+}
+
+# zbb
+
+:cpopw rd, rs1 is op2531=0b0110000 & op2024=0b00010 & rs1 & op1214=0b001 & rd & op0006=0b0011011
+{
+    rd = zext(popcount(rs1:4));
+}
+
+:ctzw rd, rs1 is op2531=0b0110000 & op2024=0b00001 & rs1 & op1214=0b001 & rd & op0006=0b0011011
+{
+    rd = bitmanip_ctzw(rs1);
+}
+
+:clzw rd, rs1 is op2531=0b0110000 & op2024=0b00000 & rs1 & op1214=0b001 & rd & op0006=0b0011011
+{
+    rd = bitmanip_clzw(rs1);
+}
+
+:zext.h rd, rs1 is op2531=0b0000100 & op2024=0b00000 & rs1 & op1214=0b100 & rd & op0006=0b0111011
+{
+   rd = zext(rs1:2);
+}
+
+# zbkb
+
+:rev8 rd, rs1 is op2031=0b011010111000 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    rd = ((rs1 & 0xFF) << 56) | ((rs1 & 0xFF00) << 40) | 
+        ((rs1 & 0xFF0000) << 24) | ((rs1 & 0xFF000000) << 8) |
+        ((rs1 >> 8) & 0xFF000000) | ((rs1 >> 24) & 0xFF0000) | 
+        ((rs1 >> 40) & 0xFF00) | ((rs1 >> 56) & 0xFF);
+}
+
+:packw rd, rs1, rs2 is op2531=0b0000100 & rs2 & rs1 & op1214=0b100 & rd & op0006=0b0111011
+{
+    rd = sext(((zext(rs2:2) << 16) | zext(rs1:2)):4);
+}
+
+:rolw rd, rs1, rs2 is op2531=0b0110000 & rs2 & rs1 & op1214=0b001 & rd & op0006=0b0111011
+{
+    rd = sext( (rs1:4 << (rs2 & 0x1F)) | (rs1:4 >> (32 - (rs2 & 0x1F))) );
+}
+
+:rorw rd, rs1, rs2 is op2531=0b0110000 & rs2 & rs1 & op1214=0b101 & rd & op0006=0b0111011
+{
+    rd = sext( (rs1:4 >> (rs2 & 0x1F)) | (rs1:4 << (32 - (rs2 & 0x1F))) );
+}
+
+:rori rd, rs1, op2025 is op2631=0b011000 & op2025 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    rd = (rs1 >> op2025) | (rs1 << (($(XLEN) << 3) - op2025));
+}
+
+:roriw rd, rs1, op2024 is op2531=0b0110000 & op2024 & rs1 & op1214=0b101 & rd & op0006=0b0011011
+{
+    rd = sext((rs1:4 >> op2024) | (rs1:4 << (32 - op2024)));
+}
+
+# zbs 
+
+:bclri rd, rs1, op2025 is op2631=0b010010 & op2025 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = rs1 & ~(1:$(XLEN) << op2025);
+}
+
+:bexti rd, rs1, op2025 is op2531=0b010010 & op2025 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    rd = (rs1 >> op2025) & 1;
+}
+
+:binvi rd, rs1, op2025 is op2531=0b011010 & op2025 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = rs1 ^ (1:$(XLEN) << op2025);
+}
+
+:bseti rd, rs1, op2025 is op2531=0b001010 & op2025 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = rs1 | (1:$(XLEN) << op2025);
+}

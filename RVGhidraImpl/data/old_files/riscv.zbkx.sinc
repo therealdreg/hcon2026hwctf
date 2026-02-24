@@ -1,0 +1,14 @@
+# Implementation of zbkb instructions official documentation (https://docs.riscv.org/reference/isa/unpriv/b-st-ext.html#zbkb)
+
+define pcodeop bitmanip_xperm4;
+define pcodeop bitmanip_xperm8;
+
+:xperm4 rd, rs1, rs2 is op2531=0b0010100 & rs2 & rs1 & op1214=0b010 & rd & op0006=0b0110011
+{
+    rd = bitmanip_xperm4(rs1, rs2);
+}
+
+:xperm8 rd, rs1, rs2 is op2531=0b0010100 & rs2 & rs1 & op1214=0b100 & rd & op0006=0b0110011
+{
+    rd = bitmanip_xperm8(rs1, rs2);
+}

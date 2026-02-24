@@ -1,0 +1,51 @@
+# Implementation of zbkb instructions official documentation (https://docs.riscv.org/reference/isa/unpriv/b-st-ext.html#zbkb)
+
+define pcodeop bitmanip_zip;
+define pcodeop bitmanip_unzip;
+
+:rol rd, rs1, rs2 is op2531=0b0110000 & rs2 & rs1 & op1214=0b001 & rd & op0006=0b0110011
+{
+    rd = (rs1 << (rs2 & (($(XLEN)<<3)-1))) | (rs1 >> (($(XLEN)<<3) - (rs2 & (($(XLEN)<<3)-1))));
+}
+
+:ror rd, rs1, rs2 is op2531=0b0110000 & rs2 & rs1 & op1214=0b101 & rd & op0006=0b0110011
+{
+    rd = (rs1 >> (rs2 & (($(XLEN)<<3)-1))) | (rs1 << (($(XLEN)<<3) - (rs2 & (($(XLEN)<<3)-1))));
+}
+
+:rori rd, rs1, op2024 is op2531=0b0110000 & op2024 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    rd = (rs1 >> op2024) | (rs1 << (($(XLEN) << 3) - op2024));
+}
+
+:rev8 rd, rs1 is op2031=0b011010011000 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    rd = ((rs1 & 0xFF) << 24) | ((rs1 & 0xFF00) << 8) | ((rs1 >> 8) & 0xFF00) | ((rs1 >> 24) & 0xFF);
+}
+
+:pack rd, rs1, rs2 is op2531=0b0000100 & rs2 & rs1 & op1214=0b100 & rd & op0006=0b0110011
+{
+    rd = (zext(rs2:$(HXLEN)) << ($(XLEN) << 2)) | zext(rs1:$(HXLEN));
+}
+
+:packh rd, rs1, rs2 is op2531=0b0000100 & rs2 & rs1 & op1214=0b111 & rd & op0006=0b0110011
+{
+    rd = (zext(rs2:1) << 8) | zext(rs1:1);
+}
+
+:brev8 rd, rs1 is op2031=0b011010000111 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    local tmp = ((rs1 & 0x5555555555555555) << 1) | ((rs1 >> 1) & 0x5555555555555555);
+    tmp = ((tmp & 0x3333333333333333) << 2) | ((tmp >> 2) & 0x3333333333333333);
+    rd = ((tmp & 0x0F0F0F0F0F0F0F0F) << 4) | ((tmp >> 4) & 0x0F0F0F0F0F0F0F0F);
+}
+
+:zip rd, rs1 is op2531=0b0000100 & op2024=0b01111 & rs1 & op1214=0b001 & rd & op0006=0b0010011
+{
+    rd = bitmanip_zip(rs1);
+}
+
+:unzip rd, rs1 is op2531=0b0000100 & op2024=0b01111 & rs1 & op1214=0b101 & rd & op0006=0b0010011
+{
+    rd = bitmanip_unzip(rs1);
+}
