@@ -12,6 +12,10 @@ The CTF PCB has an **SMD LED on GPIO 25**, **you must have an LED on that GPIO**
 
 ![LED25](stuff/images/led.png)
 
+----
+
+When you finish this CTF, if you liked it, here’s another similar one with different challenges: https://github.com/therealdreg/hcon2026hwctf
+
 # Write-ups
 
 **WARNING**: The following write-ups contain spoilers for the challenges. If you want to solve them on your own, we recommend not reading them until you have completed the CTF.
